@@ -22,4 +22,4 @@ jobs:
       - name: Publish to pypi
         run: |
           poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-          poetry publish --build --no-interaction
+          poetry publish --build --verbose

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "drf-openapi-tester"
-version = "0.1.0rc4"
+version = "0.1.0rc5"
 description = "Django test utility for validating OpenAPI response documentation"
 authors = ["Sondre Lillebø Gundersen <sondrelg@live.no>", "Na'aman Hirschfeld <nhirschfeld@gmail.com>"]
 maintainers = ["Jonas Krüger Svensson <jonas-ks@hotmail.com>"]
