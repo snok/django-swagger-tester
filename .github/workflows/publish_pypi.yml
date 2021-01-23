@@ -21,5 +21,6 @@ jobs:
           poetry publish --build --no-interaction --repository test
       - name: Publish to pypi
         run: |
+          poetry cache clear --all pypi
           poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-          poetry publish --build --no-interaction
+          poetry publish --build --verbose
