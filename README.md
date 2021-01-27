@@ -4,8 +4,8 @@
     <em>A test utility for validating response documentation</em>
 </p>
 <p align="center">
-    <a href="https://pypi.org/project/django-swagger-tester/">
-        <img src="https://img.shields.io/pypi/v/django-swagger-tester.svg" alt="Package version">
+    <a href="https://pypi.org/project/drf-openapi-tester/">
+        <img src="https://img.shields.io/pypi/v/drf-openapi-tester.svg" alt="Package version">
     </a>
     <a href="https://codecov.io/gh/snok/drf-openapi-tester">
         <img src="https://codecov.io/gh/snok/drf-openapi-tester/branch/master/graph/badge.svg" alt="Code coverage">
