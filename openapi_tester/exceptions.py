@@ -38,7 +38,8 @@ class DocumentationError(AssertionError):
             except TypeError:
                 return data_object
 
-    def format(self, example_item: Any, response: Any, reference: str, message: str, hint: str) -> str:
+    @staticmethod
+    def format(example_item: Any, response: Any, reference: str, message: str, hint: str) -> str:
         """
         Formats and returns a standardized error message for easy debugging.
         """

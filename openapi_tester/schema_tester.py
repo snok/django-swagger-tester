@@ -8,13 +8,11 @@ from rest_framework.test import APITestCase
 
 from openapi_tester import type_declarations as td
 from openapi_tester.constants import OPENAPI_PYTHON_MAPPING
-from openapi_tester.exceptions import DocumentationError, UndocumentedSchemaSectionError
+from openapi_tester.exceptions import DocumentationError, OpenAPISchemaError, UndocumentedSchemaSectionError
 from openapi_tester.loaders import DrfSpectacularSchemaLoader, DrfYasgSchemaLoader, StaticSchemaLoader
 
 
 class SchemaTester:
-    """ SchemaTester class """
-
     def __init__(
         self,
         case_tester: Optional[Callable[[str], None]] = None,
@@ -22,8 +20,11 @@ class SchemaTester:
         schema_file_path: Optional[str] = None,
     ) -> None:
         """
-        Iterates through an OpenAPI schema objet and an API response/request object to check that they match at every level.
+        Iterates through an OpenAPI schema object and API response to check that they match at every level.
 
+        :param case_tester: An optional callable that validates schema and response keys
+        :param ignore_case: An optional list of keys for the case_tester to ignore
+        :schema_file_path: The file path to an OpenAPI yaml or json file. Only passed when using a static schema loader
         :raises: openapi_tester.exceptions.DocumentationError or ImproperlyConfigured
         """
         self.case_tester = case_tester
@@ -226,11 +227,22 @@ class SchemaTester:
                 schema_section_type, data, schema_section.get("enum"), schema_section.get("format")
             ):
                 if "enum" in schema_section:
-                    message = f'Mismatched values, expected a member of the enum {schema_section["enum"]} but received {str(data)}.'
+                    message = (
+                        f"Mismatched values, expected a member of the enum "
+                        f'{schema_section["enum"]} but received {str(data)}.'
+                    )
                 elif "format" in schema_section:
-                    message = f'Mismatched values, expected a value with the format {schema_section["format"]} but received {str(data)}.'
+                    message = (
+                        f"Mismatched values, expected a value with the format "
+                        f'{schema_section["format"]} but received {str(data)}.'
+                    )
+                elif schema_section_type in OPENAPI_PYTHON_MAPPING:
+                    message = (
+                        f"Mismatched types, expected {OPENAPI_PYTHON_MAPPING[schema_section_type]} "
+                        f"but received {type(data).__name__}."
+                    )
                 else:
-                    message = f"Mismatched types, expected {OPENAPI_PYTHON_MAPPING[schema_section_type]} but received {type(data).__name__}."
+                    raise OpenAPISchemaError(f"Received a bad schema type: {schema_section_type}")
                 raise DocumentationError(
                     message=message,
                     response=data,
@@ -330,7 +342,7 @@ class SchemaTester:
                 reference=reference,
                 hint="Document the contents of the empty dictionary to match the response object.",
             )
-
+        # noinspection PyTypeChecker
         for datum in data:
             self.test_schema_section(
                 schema_section=items,
