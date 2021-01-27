@@ -227,7 +227,8 @@ class DrfSpectacularSchemaLoader(BaseSchemaLoader):
         """
         return loads(dumps(self.schema_generator.get_schema(None, True)))
 
-    def get_path_prefix(self) -> str:
+    @staticmethod
+    def get_path_prefix() -> str:
         """
         Returns the drf_spectacular specified path prefix.
         """

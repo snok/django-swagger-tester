@@ -5,7 +5,9 @@ from openapi_tester.constants import OPENAPI_PYTHON_MAPPING
 
 
 class SchemaToPythonConverter:
-    """ This class is used both by the DocumentationError format method and the various test suites """
+    """
+    This class is used both by the DocumentationError format method and the various test suites.
+    """
 
     def __init__(self, schema: dict, with_faker: bool = False):
         while any(keyword in schema for keyword in ["allOf", "oneOf", "anyOf"]):
@@ -30,7 +32,8 @@ class SchemaToPythonConverter:
                 schema_type = "object"
             else:
                 raise ValueError(
-                    f"Schema type is not specified and cannot be inferred, please make sure to definte the type key for schema: {schema}"
+                    f"Schema type is not specified and cannot be inferred, "
+                    f"please make sure to definte the type key for schema: {schema}"
                 )
         if schema_type == "array":
             self.result = self._iterate_schema_list(schema)  # type :ignore
@@ -39,18 +42,18 @@ class SchemaToPythonConverter:
         else:
             self.result = self._to_mock_value(schema_type, schema.get("enum"), schema.get("format"))  # type :ignore
 
-    def _to_mock_value(self, schema_type: Any, enum: Optional[List[Any]], format: Optional[str]) -> Any:
+    def _to_mock_value(self, schema_type: Any, enum: Optional[List[Any]], _format: Optional[str]) -> Any:
         if not hasattr(self, "faker"):
             return OPENAPI_PYTHON_MAPPING[schema_type]
         if enum:
             return enum[0]
-        elif format:
+        elif _format:
             if schema_type == "string":
-                if format == "date":
+                if _format == "date":
                     return datetime.now().date().isoformat()
-                elif format == "date-time":
+                elif _format == "date-time":
                     return datetime.now().isoformat()
-                elif format == "bytes":
+                elif _format == "bytes":
                     return self.faker.pystr().encode("utf-8")
         faker_handlers = {
             "boolean": self.faker.pybool,
