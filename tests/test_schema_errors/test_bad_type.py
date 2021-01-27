@@ -11,7 +11,9 @@ tester = SchemaTester()
 def test_bad_schema_type():
     """
     Unsupported schema types should raise an error.
+    TODO: Implement error handling in the schema tester - this currently isn't handled
     """
-    with pytest.raises(OpenAPISchemaError, match="Received a bad schema type: str"):
-        schema_array = {"type": "array", "items": {"type": "str"}}
-        tester.test_schema_section(schema_array, example_array, reference="")
+    for _type in ["str", "list", "dict", "123", 123]:
+        with pytest.raises(OpenAPISchemaError, match="Received a bad schema type: str"):
+            schema_array = {"type": "array", "items": {"type": _type}}
+            tester.test_schema_section(schema_array, example_array, reference="")

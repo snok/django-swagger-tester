@@ -8,7 +8,7 @@ from rest_framework.test import APITestCase
 
 from openapi_tester import type_declarations as td
 from openapi_tester.constants import OPENAPI_PYTHON_MAPPING
-from openapi_tester.exceptions import DocumentationError, OpenAPISchemaError, UndocumentedSchemaSectionError
+from openapi_tester.exceptions import DocumentationError, UndocumentedSchemaSectionError
 from openapi_tester.loaders import DrfSpectacularSchemaLoader, DrfYasgSchemaLoader, StaticSchemaLoader
 
 
@@ -97,7 +97,7 @@ class SchemaTester:
         if schema_type == "boolean":
             return isinstance(value, bool)
         if schema_type in ["string", "file"]:
-            if _format == "bytes":
+            if _format == "byte":
                 return isinstance(value, bytes)
             is_str = isinstance(value, str)
             if is_str and _format in ["date", "date-time"]:
@@ -231,22 +231,11 @@ class SchemaTester:
                 schema_section_type, data, schema_section.get("enum"), schema_section.get("format")
             ):
                 if "enum" in schema_section:
-                    message = (
-                        f"Mismatched values, expected a member of the enum "
-                        f'{schema_section["enum"]} but received {str(data)}.'
-                    )
+                    message = f'Mismatched values, expected a member of the enum {schema_section["enum"]} but received {str(data)}.'
                 elif "format" in schema_section:
-                    message = (
-                        f"Mismatched values, expected a value with the format "
-                        f'{schema_section["format"]} but received {str(data)}.'
-                    )
-                elif schema_section_type in OPENAPI_PYTHON_MAPPING:
-                    message = (
-                        f"Mismatched types, expected {OPENAPI_PYTHON_MAPPING[schema_section_type]} "
-                        f"but received {type(data).__name__}."
-                    )
+                    message = f'Mismatched values, expected a value with the format {schema_section["format"]} but received {str(data)}.'
                 else:
-                    raise OpenAPISchemaError(f"Received a bad schema type: {schema_section_type}")
+                    message = f"Mismatched types, expected {OPENAPI_PYTHON_MAPPING[schema_section_type]} but received {type(data).__name__}."
                 raise DocumentationError(
                     message=message,
                     response=data,
