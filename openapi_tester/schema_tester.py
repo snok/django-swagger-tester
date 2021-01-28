@@ -2,12 +2,12 @@ from typing import Any, Callable, Dict, KeysView, List, Optional, Union, cast
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.utils.dateparse import parse_date, parse_datetime
+from jsonschema import ValidationError
+from openapi_schema_validator import OAS30Validator
 from rest_framework.response import Response
 from rest_framework.test import APITestCase
 
 from openapi_tester import type_declarations as td
-from openapi_tester.constants import OPENAPI_PYTHON_MAPPING
 from openapi_tester.exceptions import DocumentationError, UndocumentedSchemaSectionError
 from openapi_tester.loaders import DrfSpectacularSchemaLoader, DrfYasgSchemaLoader, StaticSchemaLoader
 
@@ -89,35 +89,6 @@ class SchemaTester:
                 schema=schema_section,
                 reference=reference,
             )
-
-    @staticmethod
-    def _check_openapi_type(schema_type: str, value: Any, enum: Optional[List[Any]], _format: Optional[str]) -> bool:
-        if enum:
-            return value in enum
-        if schema_type == "boolean":
-            return isinstance(value, bool)
-        if schema_type in ["string", "file"]:
-            if _format == "byte":
-                return isinstance(value, bytes)
-            is_str = isinstance(value, str)
-            if is_str and _format in ["date", "date-time"]:
-                parser = parse_date if _format == "date" else parse_datetime
-                try:
-                    result = parser(value)
-                    valid = result is not None
-                except ValueError:
-                    valid = False
-                return valid
-            return is_str
-        if schema_type == "integer":
-            return isinstance(value, int)
-        if schema_type == "number":
-            if _format in ["double", "float"]:
-                return isinstance(value, float)
-            return isinstance(value, (int, float))
-        if schema_type == "object":
-            return isinstance(value, dict)
-        return isinstance(value, list)
 
     @staticmethod
     def _get_key_value(schema: dict, key: str, error_addon: str = "") -> dict:
@@ -207,9 +178,6 @@ class SchemaTester:
         case_tester: Optional[Callable[[str], None]] = None,
         ignore_case: Optional[List[str]] = None,
     ) -> None:
-        """
-        This method orchestrates the testing of a schema section
-        """
         if "oneOf" in schema_section and data is not None:
             self.handle_one_of(
                 schema_section=schema_section,
@@ -222,149 +190,12 @@ class SchemaTester:
             if "allOf" in schema_section:
                 merged_schema = self.handle_all_of(**schema_section)
                 schema_section = merged_schema
-            schema_section_type = schema_section.get("type")
-            if not schema_section_type and "properties" in schema_section:
-                schema_section_type = "object"
-            if not schema_section_type or (not data and self.is_nullable(schema_section)):
-                return
-            if data is None or not self._check_openapi_type(
-                schema_section_type, data, schema_section.get("enum"), schema_section.get("format")
-            ):
-                if "enum" in schema_section:
-                    message = f'Mismatched values, expected a member of the enum {schema_section["enum"]} but received {str(data)}.'
-                elif "format" in schema_section:
-                    message = f'Mismatched values, expected a value with the format {schema_section["format"]} but received {str(data)}.'
-                else:
-                    message = f"Mismatched types, expected {OPENAPI_PYTHON_MAPPING[schema_section_type]} but received {type(data).__name__}."
-                raise DocumentationError(
-                    message=message,
-                    response=data,
-                    schema=schema_section,
-                    reference=reference,
-                )
-            if schema_section_type == "object":
-                self._test_openapi_type_object(
-                    schema_section=schema_section,
-                    data=data,
-                    reference=reference,
-                    case_tester=case_tester,
-                    ignore_case=ignore_case,
-                )
-            elif schema_section_type == "array":
-                self._test_openapi_type_array(
-                    schema_section=schema_section,
-                    data=data,
-                    reference=reference,
-                    case_tester=case_tester,
-                    ignore_case=ignore_case,
-                )
 
-    def _test_openapi_type_object(
-        self,
-        schema_section: dict,
-        data: dict,
-        reference: str,
-        case_tester: Optional[Callable[[str], None]],
-        ignore_case: Optional[List[str]],
-    ) -> None:
-        if "properties" in schema_section:
-            properties = schema_section["properties"]
-        elif "additionalProperties" in schema_section:
-            properties = {"": schema_section["additionalProperties"]}
-        else:
-            properties = {}
-        required_keys = schema_section["required"] if "required" in schema_section else list(properties.keys())
-        response_keys = data.keys()
-
-        if len([key for key in response_keys if key in required_keys]) != len(required_keys):
-            missing_keys = ", ".join(str(key) for key in sorted(list(set(required_keys) - set(response_keys))))
-            hint = "Remove the key(s) from your OpenAPI docs, or include it in your API response."
-            message = f"The following properties are missing from the tested data: {missing_keys}."
-            raise DocumentationError(
-                message=message,
-                response=data,
-                schema=schema_section,
-                reference=reference,
-                hint=hint,
-            )
-
-        for schema_key, response_key in zip([key for key in properties.keys() if key in response_keys], response_keys):
-            self._test_key_casing(schema_key, case_tester, ignore_case)
-            self._test_key_casing(response_key, case_tester, ignore_case)
-            if schema_key in required_keys and schema_key not in response_keys:
-                raise DocumentationError(
-                    message=f"Schema key `{schema_key}` was not found in the tested data.",
-                    response=data,
-                    schema=schema_section,
-                    reference=reference,
-                    hint="You need to add the missing schema key to the response, "
-                    "or remove it from the documented response.",
-                )
-            if response_key not in properties:
-                raise DocumentationError(
-                    message=f"Key `{response_key}` not found in the OpenAPI schema.",
-                    response=data,
-                    schema=schema_section,
-                    reference=reference,
-                    hint="You need to add the missing schema key to your documented "
-                    "response, or stop returning it in your API.",
-                )
-
-            schema_value = properties[schema_key]
-            response_value = data[schema_key]
-            self.test_schema_section(
-                schema_section=schema_value,
-                data=response_value,
-                reference=f"{reference}.dict:key:{schema_key}",
-                case_tester=case_tester,
-                ignore_case=ignore_case,
-            )
-
-    def _test_openapi_type_array(
-        self,
-        schema_section: dict,
-        data: dict,
-        reference: str,
-        case_tester: Optional[Callable[[str], None]],
-        ignore_case: Optional[List[str]],
-    ) -> None:
-        items = schema_section["items"]
-        if items is None and data is not None:
-            raise DocumentationError(
-                message="Mismatched content. Response array contains data, when schema is empty.",
-                response=data,
-                schema=schema_section,
-                reference=reference,
-                hint="Document the contents of the empty dictionary to match the response object.",
-            )
-
-        # noinspection PyTypeChecker
-        for datum in data:
-            self.test_schema_section(
-                schema_section=items,
-                data=datum,
-                reference=f"{reference}.list",
-                case_tester=case_tester,
-                ignore_case=ignore_case,
-            )
-
-    @staticmethod
-    def is_nullable(schema_item: dict) -> bool:
-        """
-        Checks if the item is nullable.
-
-        OpenAPI 3 ref: https://swagger.io/docs/specification/data-models/data-types/#null
-        OpenApi 2 ref: https://help.apiary.io/api_101/swagger-extensions/
-
-        :param schema_item: schema item
-        :return: whether or not the item can be None
-        """
-        openapi_schema_3_nullable = "nullable"
-        swagger_2_nullable = "x-nullable"
-        return any(
-            nullable_key in schema_item and schema_item[nullable_key]
-            for nullable_key in [openapi_schema_3_nullable, swagger_2_nullable]
-        )
+            validator = OAS30Validator(schema_section)
+            try:
+                validator.validate(data)
+            except ValidationError as e:
+                raise DocumentationError(message=e.message, response=data, schema=schema_section)
 
     def validate_response(
         self,

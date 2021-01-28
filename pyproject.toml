@@ -48,6 +48,7 @@ openapi-spec-validator = "^0.2.9"
 prance = "^0.16.0"
 python = "^3.7"
 pyYAML = "*"
+openapi-schema-validator = "^0.1.1"
 
 [tool.poetry.dev-dependencies]
 drf-spectacular = "^0.13.1"
@@ -68,7 +69,7 @@ profile = "black"
 multi_line_output = 3
 include_trailing_comma = true
 line_length = 120
-known_third_party = ["django", "drf_spectacular", "drf_yasg", "inflection", "openapi_spec_validator", "prance", "pytest", "rest_framework", "yaml"]
+known_third_party = ["django", "drf_spectacular", "drf_yasg", "inflection", "jsonschema", "openapi_schema_validator", "openapi_spec_validator", "prance", "pytest", "rest_framework", "yaml"]
 known_first_party = ["openapi_tester"]
 
 [build-system]
